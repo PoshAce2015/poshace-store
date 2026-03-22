@@ -140,6 +140,39 @@ export async function signInWithOTP(formData: FormData): Promise<void> {
   redirect(`/login?message=${encodeURIComponent("Check your email for the login link")}`);
 }
 
+export async function signInWithPhoneOTP(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const phone = formData.get("phone") as string;
+  const fullPhone = `+91${phone.replace(/\D/g, "")}`;
+
+  const { error } = await supabase.auth.signInWithOtp({ phone: fullPhone });
+
+  if (error) {
+    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect(`/login?message=${encodeURIComponent("OTP sent to your mobile number. Check your SMS.")}`);
+}
+
+export async function signInWithGoogle(): Promise<void> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://poshace.com"}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+  }
+
+  if (data.url) {
+    redirect(data.url);
+  }
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

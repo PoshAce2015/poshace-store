@@ -7,20 +7,69 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { MegaMenuDesktop, MegaMenuMobile, type CategoryNode } from "./mega-menu";
 
-const mainCategories = [
-  { name: "Electronics", href: "/electronics.html" },
-  { name: "Computers", href: "/computers-and-accessories.html" },
-  { name: "Watches", href: "/watches.html" },
-  { name: "Home Improvement", href: "/home-improvement.html" },
-  { name: "Sports & Fitness", href: "/sports-fitness-and-outdoors.html" },
-  { name: "Office Products", href: "/office-products.html" },
-  { name: "Musical Instruments", href: "/musical-instruments.html" },
-  { name: "Home & Kitchen", href: "/home-and-kitchen.html" },
-  { name: "Video Games", href: "/video-games.html" },
+async function getCategories(): Promise<CategoryNode[]> {
+  try {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("categories")
+      .select("id, name, path, parent_id, product_count")
+      .eq("status", "active")
+      .order("sort_order", { ascending: true });
+
+    if (!data) return [];
+
+    // Build tree from flat list
+    const map = new Map<string | null, CategoryNode[]>();
+    for (const row of data) {
+      const node: CategoryNode = {
+        id: row.id,
+        name: row.name,
+        path: row.path,
+        product_count: row.product_count ?? 0,
+        children: [],
+      };
+      const parentId = row.parent_id ?? null;
+      if (!map.has(parentId)) map.set(parentId, []);
+      map.get(parentId)!.push(node);
+    }
+
+    // Attach children to parents
+    function buildTree(parentId: string | null): CategoryNode[] {
+      const nodes = map.get(parentId) ?? [];
+      for (const node of nodes) {
+        node.children = buildTree(node.id);
+      }
+      return nodes;
+    }
+
+    return buildTree(null);
+  } catch {
+    // Fallback to hardcoded categories if DB unavailable
+    return fallbackCategories;
+  }
+}
+
+const fallbackCategories: CategoryNode[] = [
+  { id: "1", name: "Electronics", path: "electronics", product_count: 10000, children: [] },
+  { id: "2", name: "Computers", path: "computers-and-accessories", product_count: 1025, children: [] },
+  { id: "3", name: "Watches", path: "watches", product_count: 237, children: [] },
+  { id: "4", name: "Home Improvement", path: "home-improvement", product_count: 41, children: [] },
+  { id: "5", name: "Sports & Fitness", path: "sports-fitness-and-outdoors", product_count: 23, children: [] },
+  { id: "6", name: "Office Products", path: "office-products", product_count: 727, children: [] },
+  { id: "7", name: "Musical Instruments", path: "musical-instruments", product_count: 1048, children: [] },
+  { id: "8", name: "Home & Kitchen", path: "home-and-kitchen", product_count: 0, children: [] },
+  { id: "9", name: "Video Games", path: "video-games", product_count: 901, children: [] },
+  { id: "10", name: "Car & Motorbike", path: "car-and-motorbike", product_count: 0, children: [] },
+  { id: "11", name: "Industrial & Scientific", path: "industrial-and-scientific", product_count: 0, children: [] },
+  { id: "12", name: "Toys & Games", path: "toys-and-games", product_count: 0, children: [] },
 ];
 
-export function Header() {
+export async function Header() {
+  const categories = await getCategories();
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       {/* Top bar */}
@@ -43,44 +92,48 @@ export function Header() {
               <Menu className="h-5 w-5" />
               <span className="sr-only">Menu</span>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72">
-              <nav className="flex flex-col gap-2 mt-8">
-                {mainCategories.map((cat) => (
-                  <Link
-                    key={cat.href}
-                    href={cat.href}
-                    className="px-3 py-2 text-sm hover:bg-accent rounded-md"
-                  >
-                    {cat.name}
-                  </Link>
-                ))}
-              </nav>
+            <SheetContent side="left" className="w-80 overflow-y-auto">
+              <div className="mt-6">
+                <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Categories
+                </p>
+                <MegaMenuMobile categories={categories} />
+              </div>
+              <div className="border-t mt-6 pt-4">
+                <Link href="/about-us" className="block px-3 py-2 text-sm hover:bg-accent rounded-md">About Us</Link>
+                <Link href="/contact-us" className="block px-3 py-2 text-sm hover:bg-accent rounded-md">Contact Us</Link>
+                <Link href="/affiliates" className="block px-3 py-2 text-sm hover:bg-accent rounded-md">Affiliates</Link>
+              </div>
             </SheetContent>
           </Sheet>
 
           {/* Logo */}
           <Link href="/" className="flex-shrink-0">
-            <h1 className="text-xl font-bold tracking-tight">
+            <span className="text-xl font-bold tracking-tight">
               Posh<span className="text-primary">ace</span>
-            </h1>
+            </span>
           </Link>
 
           {/* Search */}
           <div className="flex-1 max-w-2xl hidden md:flex">
-            <div className="relative w-full">
+            <form action="/search" className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
+                name="q"
                 placeholder="Search products, brands, model numbers..."
                 className="pl-10 w-full"
               />
-            </div>
+            </form>
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-2 ml-auto">
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Search className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="md:hidden" asChild>
+              <Link href="/search">
+                <Search className="h-5 w-5" />
+                <span className="sr-only">Search</span>
+              </Link>
             </Button>
             <Link href="/account/orders">
               <Button variant="ghost" size="icon">
@@ -98,23 +151,8 @@ export function Header() {
         </div>
       </div>
 
-      {/* Category nav — desktop */}
-      <nav className="hidden md:block border-t">
-        <div className="container mx-auto px-4">
-          <ul className="flex items-center gap-1 overflow-x-auto py-2 text-sm">
-            {mainCategories.map((cat) => (
-              <li key={cat.href}>
-                <Link
-                  href={cat.href}
-                  className="px-3 py-1.5 rounded-md hover:bg-accent whitespace-nowrap transition-colors"
-                >
-                  {cat.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </nav>
+      {/* Category nav — desktop mega menu */}
+      <MegaMenuDesktop categories={categories} />
     </header>
   );
 }
