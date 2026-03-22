@@ -129,12 +129,10 @@ export async function Header() {
 
           {/* Actions */}
           <div className="flex items-center gap-2 ml-auto">
-            <Button variant="ghost" size="icon" className="md:hidden" asChild>
-              <Link href="/search">
-                <Search className="h-5 w-5" />
-                <span className="sr-only">Search</span>
-              </Link>
-            </Button>
+            <Link href="/search" className="md:hidden inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-10 w-10">
+              <Search className="h-5 w-5" />
+              <span className="sr-only">Search</span>
+            </Link>
             <Link href="/account/orders">
               <Button variant="ghost" size="icon">
                 <User className="h-5 w-5" />
