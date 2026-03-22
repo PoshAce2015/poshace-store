@@ -92,6 +92,11 @@ const coreExperience = [
 export const revalidate = 1800; // ISR: 30 minutes
 
 async function getHomepageProducts() {
+  // Gracefully handle missing env vars during build prerendering
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return { newArrivals: [], trending: [], deals: [], bestSellers: [] };
+  }
+
   const supabase = createAdminClient();
 
   const baseSelect = `id, title, slug, primary_image_url, brand:brands(name, slug), variants:product_variants(price, compare_at_price, inventory_status)`;
